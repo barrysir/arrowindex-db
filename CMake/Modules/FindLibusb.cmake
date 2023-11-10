@@ -25,6 +25,7 @@ endif ( PKG_CONFIG_FOUND )
 if ( PKGCONFIG_LIBUSB_FOUND )
   set ( LIBUSB_FOUND ${PKGCONFIG_LIBUSB_FOUND} )
   set ( LIBUSB_INCLUDE_DIRS ${PKGCONFIG_LIBUSB_INCLUDE_DIRS} )
+  set ( LIBUSB_INCLUDE_DIRS "/usr/include" )
   foreach ( i ${PKGCONFIG_LIBUSB_LIBRARIES} )
     find_library ( ${i}_LIBRARY
       NAMES ${i}

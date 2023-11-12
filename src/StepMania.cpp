@@ -885,6 +885,8 @@ int sm_main(int argc, char* argv[])
 
 	// Set this up next. Do this early, since it's needed for RageException::Throw.
 	LOG		= new RageLog;
+	LOG->Info( "[Stepmania::sm_main] gaming" );
+
 
 	// Whew--we should be able to crash safely now!
 
@@ -996,6 +998,10 @@ int sm_main(int argc, char* argv[])
 	// depends on SONGINDEX:
 	SONGMAN		= new SongManager;
 	SONGMAN->InitAll( pLoadingWindow, /*onlyAdditions=*/false );	// this takes a long time
+	LOG->Info( "[Stepmania::sm_main] gaming" );
+	ShutdownGame();
+	return 0;
+	
 	CRYPTMAN	= new CryptManager;		// need to do this before ProfileMan
 	if( PREFSMAN->m_bSignProfileData )
 		CRYPTMAN->GenerateGlobalKeys();

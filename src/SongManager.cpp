@@ -37,6 +37,7 @@
 #include "TrailUtil.h"
 #include "UnlockManager.h"
 #include "SpecialFiles.h"
+#include "arrowindex-db/src/lib.rs.h"
 
 #include <cstddef>
 #include <tuple>
@@ -374,6 +375,8 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 	int sanity_index= 0;
 	for (RString const &sGroupDirName : arrayGroupDirs)	// foreach dir in /Songs/
 	{
+		rust_from_cpp();
+		LOG->Info("[SongManager] Detected pack %s", (sDir+sGroupDirName).c_str());
 		if(ld && loading_window_last_update_time.Ago() > next_loading_window_update)
 		{
 			loading_window_last_update_time.Touch();
@@ -390,6 +393,8 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 		StripCvsAndSvn( arraySongDirs );
 		StripMacResourceForks( arraySongDirs );
 		SortRStringArray( arraySongDirs );
+
+		LOG->Info("[SongManager] Detected songs: %d", arraySongDirs.size());
 
 		arrayGroupSongDirs.push_back(arraySongDirs);
 		songCount += arraySongDirs.size();
@@ -442,12 +447,19 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 			}
 
 			Song* pNewSong = new Song;
+			LOG->Info("[SongManager] Loading from %s", sSongDirName.c_str());
 			if( !pNewSong->LoadFromSongDir( sSongDirName ) )
 			{
+			LOG->Info("[SongManager] Failed to load");
 				// The song failed to load.
 				delete pNewSong;
 				continue;
 			}
+			LOG->Info("[SongManager] Loaded song: %s - %s (%f seconds)", 
+				(pNewSong->GetDisplayArtist()).c_str(), 
+				(pNewSong->GetTranslitMainTitle()).c_str(),
+				pNewSong->m_fMusicLengthSeconds
+			);
 			AddSongToList(pNewSong);
 
 			index_entry.push_back( pNewSong );

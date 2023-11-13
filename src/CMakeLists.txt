@@ -452,10 +452,6 @@ target_link_libraries("${SM_EXE_NAME}" ${SMDATA_LINK_LIB})
 list(APPEND SM_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
             "${SM_SRC_DIR}/generated")
 
-list(APPEND SM_INCLUDE_DIRS "${RUST_INCLUDE_DIR}")
-
-add_dependencies("${SM_EXE_NAME}" "rust")
-
 if(APPLE)
   list(APPEND SM_INCLUDE_DIRS "archutils/Unix")
 

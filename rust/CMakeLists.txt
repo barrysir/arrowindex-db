@@ -12,10 +12,12 @@ externalproject_add(
 )
 
 # https://stackoverflow.com/questions/6351609/cmake-linking-to-library-downloaded-from-externalproject-add
-SET(RUST_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/target/cxxbridge)
+SET(RUST_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/target/cxxbridge")
 
 # todo: debug and release ver?
-SET(RUST_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/target/debug)
+SET(RUST_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/target/debug")
 
-add_library(rustlib SHARED IMPORTED)
-set_target_properties(rustlib PROPERTIES IMPORTED_LOCATION ${RUST_LIB_DIR}/libarrowindex_db.a)
+add_library(rustlib INTERFACE IMPORTED GLOBAL)
+set_target_properties(rustlib PROPERTIES IMPORTED_LOCATION "${RUST_LIB_DIR}/libarrowindex_db.a")
+set_target_properties(rustlib PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${RUST_INCLUDE_DIR}")
+set_target_properties(rustlib PROPERTIES INTERFACE_LINK_LIBRARIES "${RUST_LIB_DIR}/libarrowindex_db.a")

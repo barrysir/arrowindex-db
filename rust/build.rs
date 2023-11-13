@@ -4,4 +4,6 @@ fn main() {
     // minimal example: no C++ code to be called from Rust
     cxx_build::bridge("src/lib.rs")
         .compile("cpp_from_rust");
+
+    println!("cargo:rerun-if-changed=src/lib.rs");
 }

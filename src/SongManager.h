@@ -22,6 +22,9 @@ struct lua_State;
 #include <cstddef>
 #include <vector>
 
+namespace arrowindex {
+	class Pack;
+}
 
 RString SONG_GROUP_COLOR_NAME( std::size_t i );
 RString COURSE_GROUP_COLOR_NAME( std::size_t i );
@@ -206,6 +209,7 @@ protected:
 	bool GetExtraStageInfoFromCourse( bool bExtra2, RString sPreferredGroup, Song*& pSongOut, Steps*& pStepsOut, StepsType stype );
 	void SanityCheckGroupDir( RString sDir ) const;
 	void AddGroup( RString sDir, RString sGroupDirName );
+	void AddGroup( RString sDir, RString sGroupDirName, arrowindex::Pack *pack );
 	int GetNumEditsLoadedFromProfile( ProfileSlot slot ) const;
 
 	void AddSongToList(Song* new_song);

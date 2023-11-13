@@ -37,7 +37,8 @@
 #include "TrailUtil.h"
 #include "UnlockManager.h"
 #include "SpecialFiles.h"
-#include "arrowindex-db/src/lib.rs.h"
+
+#include "ArrowIndex.h"
 
 #include <cstddef>
 #include <tuple>
@@ -270,6 +271,11 @@ void SongManager::SanityCheckGroupDir( RString sDir ) const
 
 void SongManager::AddGroup( RString sDir, RString sGroupDirName )
 {
+	AddGroup(sDir, sGroupDirName, nullptr);
+}
+
+void SongManager::AddGroup( RString sDir, RString sGroupDirName, arrowindex::Pack *pack )
+{
 	unsigned j;
 	for(j = 0; j < m_sSongGroupNames.size(); ++j)
 		if( sGroupDirName == m_sSongGroupNames[j] )
@@ -337,6 +343,11 @@ void SongManager::AddGroup( RString sDir, RString sGroupDirName )
 	m_sSongGroupNames.push_back( sGroupDirName );
 	m_sSongGroupBannerPaths.push_back( sBannerPath );
 	//m_sSongGroupBackgroundPaths.push_back( sBackgroundPath );
+
+	if (pack) {
+		pack->name = sGroupDirName;
+		pack->banner_path = sBannerPath;
+	}
 }
 
 static LocalizedString LOADING_SONGS ( "SongManager", "Loading songs..." );
@@ -375,7 +386,6 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 	int sanity_index= 0;
 	for (RString const &sGroupDirName : arrayGroupDirs)	// foreach dir in /Songs/
 	{
-		rust_from_cpp();
 		LOG->Info("[SongManager] Detected pack %s", (sDir+sGroupDirName).c_str());
 		if(ld && loading_window_last_update_time.Ago() > next_loading_window_update)
 		{
@@ -394,7 +404,7 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 		StripMacResourceForks( arraySongDirs );
 		SortRStringArray( arraySongDirs );
 
-		LOG->Info("[SongManager] Detected songs: %d", arraySongDirs.size());
+		LOG->Info("[SongManager] Detected songs: %lu", arraySongDirs.size());
 
 		arrayGroupSongDirs.push_back(arraySongDirs);
 		songCount += arraySongDirs.size();
@@ -412,6 +422,7 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 	songIndex = 0;
 	for (RString const &sGroupDirName : arrayGroupDirs)	// foreach dir in /Songs/
 	{
+		arrowindex::Pack current_pack;
 		std::vector<RString> &arraySongDirs = arrayGroupSongDirs[groupIndex++];
 
 		LOG->Trace("Attempting to load %i songs from \"%s\"", int(arraySongDirs.size()),
@@ -455,11 +466,9 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 				delete pNewSong;
 				continue;
 			}
-			LOG->Info("[SongManager] Loaded song: %s - %s (%f seconds)", 
-				(pNewSong->GetDisplayArtist()).c_str(), 
-				(pNewSong->GetTranslitMainTitle()).c_str(),
-				pNewSong->m_fMusicLengthSeconds
-			);
+
+			current_pack.songs.push_back(arrowindex_utils::parse_song(*pNewSong));
+
 			AddSongToList(pNewSong);
 
 			index_entry.push_back( pNewSong );
@@ -473,7 +482,8 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 		if(!loaded) continue;
 
 		// Add this group to the group array.
-		AddGroup(sDir, sGroupDirName);
+		AddGroup(sDir, sGroupDirName, &current_pack);
+		arrowindex::process_new_pack(current_pack);
 
 		// Cache and load the group banner. (and background if it has one -aj)
 		IMAGECACHE->CacheImage( "Banner", GetSongGroupBannerPath(sGroupDirName) );

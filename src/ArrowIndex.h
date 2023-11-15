@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "Song.h"
 
 #include "arrowindex-db/src/lib.rs.h"
@@ -13,6 +15,46 @@ namespace arrowindex_utils {
             default:
                 throw std::invalid_argument(RString("Invalid DisplayBPM enum value given -- ") + DisplayBPMToString(bpm));
         }
+    }
+
+    arrowindex::Difficulty convert_difficulty(Difficulty diff) {
+        switch (diff) {
+            case Difficulty_Beginner: return arrowindex::Difficulty::Beginner;
+            case Difficulty_Easy: return arrowindex::Difficulty::Easy;
+            case Difficulty_Medium: return arrowindex::Difficulty::Medium;
+            case Difficulty_Hard: return arrowindex::Difficulty::Hard;
+            case Difficulty_Challenge: return arrowindex::Difficulty::Challenge;
+            case Difficulty_Edit: return arrowindex::Difficulty::Edit;
+            default:
+                throw std::invalid_argument(RString("Invalid Difficulty enum value given -- ") + DifficultyToString(diff));
+        }
+    }
+
+    std::optional<arrowindex::Chart> process_chart(const Steps &steps) {
+        // ignore charts with an invalid difficulty?
+        if (steps.GetDifficulty() == Difficulty_Invalid) {
+            return {};
+        }
+
+        // Radarvalues are dependent on player because of couples/routine charts
+        // For non-couples charts, values are stored in P1 so we'll read from there
+        // todo: support couples?
+        auto radarvalues = steps.GetRadarValues(PLAYER_1);
+
+        return arrowindex::Chart {
+            // idk, maybe can manage something fancier to properly parse stepstype and handle invalid values
+            // todo: see how stepmania behaves with invalid steptypes
+            .stepstype = steps.m_StepsTypeStr,      // todo
+            .difficulty = convert_difficulty(steps.GetDifficulty()),    // todo: unroll this enum
+            .description = steps.GetDescription(),
+            .meter = steps.GetMeter(),
+            .num_steps = radarvalues[RadarCategory_TapsAndHolds],
+            .num_mines = radarvalues[RadarCategory_Mines],
+            .num_jumps = radarvalues[RadarCategory_Jumps],
+            .num_hands = radarvalues[RadarCategory_Hands],
+            .num_holds = radarvalues[RadarCategory_Holds],
+            .num_rolls = radarvalues[RadarCategory_Rolls],
+        };
     }
 
     arrowindex::Song parse_song(const Song &song) {
@@ -55,6 +97,12 @@ namespace arrowindex_utils {
 
             // .charts = Vec<Chart>,
         };
+
+        for (const Steps* steps : song.GetAllSteps()) {
+            if (auto s = process_chart(*steps)) {
+                song_data.charts.push_back(*s);
+            }
+        }
 
         return song_data;
     }

@@ -37,15 +37,48 @@ mod ffi {
         background: String,   // SM ONLY. Path to the background
         cdtitle: String,      // SM ONLY. Path to the cd title
     
-        // charts: Vec<Chart>,
+        charts: Vec<Chart>,
     
         // speedchanges: str,    // bpm and speed changes, stored in JSON, to be rendered as a graph on the client
+    }
+
+    struct Chart {
+        stepstype: String,          // can deduplicate these into an enum or table if i want
+        difficulty: Difficulty,     // can deduplicate these into an enum or table if i want
+        description: String,
+        meter: i32,
+        // radarvalues: String,        // todo: parse this?
+    
+        // hash: String,      // can store as integer to make smaller
+    
+        // don't bother storing raw difficulties, only what Stepmania parses
+        // difficulty_raw: String,
+    
+        num_steps: u32,
+        num_mines: u32,
+        num_jumps: u32,
+        num_hands: u32,
+        num_holds: u32,
+        num_rolls: u32,
+        
+        // song_overrides: String, // if this chart has its own bpm changes or other unique values, put it here. JSON format
     }
 
     enum DisplayBpm {
         Actual,
         Specified,
         Random,
+    }
+
+    #[derive(Hash)]
+    enum Difficulty {
+        Beginner,
+        Easy,
+        Medium,
+        Hard,
+        Challenge,
+        Edit,
+        Invalid,
     }
 
     extern "Rust" {
@@ -59,6 +92,10 @@ pub fn rust_from_cpp() -> () {
 }
 
 pub fn process_new_pack(pack: ffi::Pack) -> () {
+    use std::collections::HashMap;
+    use ffi::Difficulty;
+    use ffi::Chart;
+
     println!("Rust got a new pack: {} ({} songs)", pack.name, pack.songs.len());
 
     for song in pack.songs.iter() {
@@ -66,6 +103,13 @@ pub fn process_new_pack(pack: ffi::Pack) -> () {
             if song.minbpm == song.maxbpm { format!("{}", song.minbpm) }
             else { format!("{}-{}", song.minbpm, song.maxbpm) }
         };
-        println!("\t{} - {} ({} BPM, {} seconds)", song.artist, song.title, bpmstring, song.length);
+        
+        let diffspread = {
+            let lookup = song.charts.iter().filter(|c| c.stepstype == "dance-single").map(|c| (c.difficulty, c)).collect::<HashMap<Difficulty, &Chart>>();
+            let spread = [Difficulty::Beginner, Difficulty::Easy, Difficulty::Medium, Difficulty::Hard, Difficulty::Challenge];
+            format!("| {} |", spread.map(|d| lookup.get(&d).map(|c| c.meter.to_string()).unwrap_or("-".to_string())).join(" | "))
+        };
+
+        println!("\t{} {} - {} ({} BPM, {} seconds)", diffspread, song.artist, song.title, bpmstring, song.length);
     }
 }

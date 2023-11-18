@@ -1,8 +1,11 @@
+pub mod models;
+pub mod schema;
+
 #[cxx::bridge(namespace = "arrowindex")]
 mod ffi {
     struct Pack {
         name: String,
-        banner_path: String,
+        banner_path: String,    // path to banner relative to itgmania
         songs: Vec<Song>,
     }
 
@@ -13,6 +16,9 @@ mod ffi {
         // has_mods: bool,  // lua, BGCHANGES, or anything similar
         // has_lua: bool,  // lua scripting specifically
         // has_video: bool,  // does this song show a video
+
+        // path: String,           // Path to song directory relative to itgmania (is this needed?)
+        simfile: String,        // Path to the parsed simfile relative to itgmania
     
         artist: String,
         artisttranslit: String,
@@ -32,10 +38,10 @@ mod ffi {
     
         length: f32,      // length of the song as calculated by Stepmania
     
-        music: String,        // SM ONLY. Path to the audio file
-        banner: String,       // SM ONLY. Path to the banner
-        background: String,   // SM ONLY. Path to the background
-        cdtitle: String,      // SM ONLY. Path to the cd title
+        music: String,        // Path to the audio file relative to itgmania
+        banner: String,       // Path to the banner relative to itgmania
+        background: String,   // Path to the background relative to itgmania
+        cdtitle: String,      // Path to the cd title relative to itgmania
     
         charts: Vec<Chart>,
     
@@ -91,6 +97,40 @@ pub fn rust_from_cpp() -> () {
     println!("called rust_from_cpp()");
 }
 
+use diesel::sqlite::SqliteConnection;
+use diesel::prelude::*;
+// use dotenvy::dotenv;
+// use std::env;
+
+pub fn establish_connection() -> SqliteConnection {
+    // dotenv().ok();
+
+    let database_url = "sqlite://arrowindex.db"; // env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    SqliteConnection::establish(&database_url)
+        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
+}
+
+pub fn insert_pack(pack: ffi::Pack) -> () {    
+    // dev note: this function takes ownership of the pack struct so it can 
+    // move data (strings, etc.) into the models::Pack object without cloning
+
+    use self::schema::packs::dsl::*;
+
+    let connection = &mut establish_connection();
+    let model_pack = models::Pack {
+        name: pack.name,
+        banner_path: pack.banner_path,  // todo: copy pack banner to file storage and place new path in here
+    };
+    diesel::insert_into(packs).values(&model_pack).execute(connection).unwrap();
+    // diesel::update(packs::table).set(model_pack).execute(connection)
+    // let results = packs
+    //     .filter(published.eq(true))
+    //     .limit(5)
+    //     .select(Post::as_select())
+    //     .load(connection)
+    //     .expect("Error loading posts");
+}
+
 pub fn process_new_pack(pack: ffi::Pack) -> () {
     use std::collections::HashMap;
     use ffi::Difficulty;
@@ -110,6 +150,8 @@ pub fn process_new_pack(pack: ffi::Pack) -> () {
             format!("| {} |", spread.map(|d| lookup.get(&d).map(|c| c.meter.to_string()).unwrap_or("-".to_string())).join(" | "))
         };
 
-        println!("\t{} {} - {} ({} BPM, {} seconds)", diffspread, song.artist, song.title, bpmstring, song.length);
+        println!("\t{} {} - {} ({} BPM, {} seconds) simfile:{}", diffspread, song.artist, song.title, bpmstring, song.length, song.simfile);
     }
+
+    insert_pack(pack);
 }

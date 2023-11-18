@@ -48,12 +48,12 @@ namespace arrowindex_utils {
             .difficulty = convert_difficulty(steps.GetDifficulty()),    // todo: unroll this enum
             .description = steps.GetDescription(),
             .meter = steps.GetMeter(),
-            .num_steps = radarvalues[RadarCategory_TapsAndHolds],
-            .num_mines = radarvalues[RadarCategory_Mines],
-            .num_jumps = radarvalues[RadarCategory_Jumps],
-            .num_hands = radarvalues[RadarCategory_Hands],
-            .num_holds = radarvalues[RadarCategory_Holds],
-            .num_rolls = radarvalues[RadarCategory_Rolls],
+            .num_steps = (unsigned int) radarvalues[RadarCategory_TapsAndHolds],
+            .num_mines = (unsigned int) radarvalues[RadarCategory_Mines],
+            .num_jumps = (unsigned int) radarvalues[RadarCategory_Jumps],
+            .num_hands = (unsigned int) radarvalues[RadarCategory_Hands],
+            .num_holds = (unsigned int) radarvalues[RadarCategory_Holds],
+            .num_rolls = (unsigned int) radarvalues[RadarCategory_Rolls],
         };
     }
 
@@ -66,6 +66,8 @@ namespace arrowindex_utils {
         auto song_data = arrowindex::Song {
             // todo - looking for secret songs not supported yet
             .is_secret = false,
+
+            .simfile = song.GetSongFilePath(),
 
             // has_scroll: bool,  // bpm changes, stops, or similar
             // has_mods: bool,  // lua, BGCHANGES, or anything similar
@@ -95,7 +97,7 @@ namespace arrowindex_utils {
             .background = song.GetBackgroundPath(),
             .cdtitle = song.GetCDTitlePath(),
 
-            // .charts = Vec<Chart>,
+            .charts = {},
         };
 
         for (const Steps* steps : song.GetAllSteps()) {

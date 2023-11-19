@@ -60,12 +60,12 @@ mod ffi {
         // don't bother storing raw difficulties, only what Stepmania parses
         // difficulty_raw: String,
     
-        num_steps: u32,
-        num_mines: u32,
-        num_jumps: u32,
-        num_hands: u32,
-        num_holds: u32,
-        num_rolls: u32,
+        num_steps: i32,
+        num_mines: i32,
+        num_jumps: i32,
+        num_hands: i32,
+        num_holds: i32,
+        num_rolls: i32,
         
         // song_overrides: String, // if this chart has its own bpm changes or other unique values, put it here. JSON format
     }
@@ -105,6 +105,7 @@ use diesel::prelude::*;
 pub fn establish_connection() -> SqliteConnection {
     // dotenv().ok();
 
+    // todo: don't hardcode this
     let database_url = "sqlite://arrowindex.db"; // env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     SqliteConnection::establish(&database_url)
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
@@ -113,6 +114,7 @@ pub fn establish_connection() -> SqliteConnection {
 pub fn insert_pack(pack: &ffi::Pack) -> () {
     use self::schema::packs;
     use self::schema::songs;
+    use self::schema::charts;
 
     // insert pack record
     let connection = &mut establish_connection();
@@ -152,12 +154,57 @@ pub fn insert_pack(pack: &ffi::Pack) -> () {
         }
     }).collect::<Vec<models::Song>>();
 
-    diesel::insert_into(songs::table)
-        .values(songs_to_insert)
+    let song_ids = {
+        let insert_count = diesel::insert_into(songs::table)
+            .values(&songs_to_insert)
+            .execute(connection).unwrap();
+
+        // let song_ids = diesel::insert_into(songs::table)
+        //     .values(&songs_to_insert)
+        //     .returning(songs::id)
+        //     .get_results(connection)
+        //     .unwrap();
+
+        // .get_results() doesn't work with .returning() and batch insert on sqlite 
+        // because sqlite doesn't support batch insert with the DEFAULT sql keyword.
+        // error[E0271]: type mismatch resolving `<Sqlite as SqlDialect>::InsertWithDefaultKeyword == IsoSqlDefaultKeyword`
+        // https://stackoverflow.com/questions/74578751/diesel-get-results-gives-a-trait-bound-error
+        // we have to get the song ids another way.
+        // I found this approach in the diesel sqlite example code, I'll use it for now:
+        // https://github.com/diesel-rs/diesel/blob/2.1.x/examples/sqlite/all_about_inserts/src/lib.rs#L290
+        (songs::table)
+            .order(songs::id.desc())
+            .limit(insert_count as i64)
+            .select(models::SongId::as_select())
+            .load(connection)
+            .unwrap().into_iter().rev().map(|s| s.id)
+            .collect::<Vec<i32>>()
+    };
+
+    // insert charts
+    let charts_to_insert = pack.songs.iter().zip(song_ids.iter()).map(|(song, song_id)| {
+        song.charts.iter().map(|chart| {
+            models::Chart {
+                song_id: *song_id,
+                stepstype: &chart.stepstype,
+                difficulty: chart.difficulty.repr as i32,
+                description: &chart.description,
+                meter: chart.meter,
+                num_steps: chart.num_steps,
+                num_mines: chart.num_mines,
+                num_jumps: chart.num_jumps,
+                num_hands: chart.num_hands,
+                num_holds: chart.num_holds,
+                num_rolls: chart.num_rolls,
+            }
+        })
+    }).flatten().collect::<Vec<models::Chart>>();
+
+    diesel::insert_into(charts::table)
+        .values(&charts_to_insert)
         .execute(connection)
         .unwrap();
     
-
     // diesel::update(packs::table).set(model_pack).execute(connection)
     // let results = packs
     //     .filter(published.eq(true))

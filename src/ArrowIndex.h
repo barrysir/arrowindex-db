@@ -48,12 +48,12 @@ namespace arrowindex_utils {
             .difficulty = convert_difficulty(steps.GetDifficulty()),    // todo: unroll this enum
             .description = steps.GetDescription(),
             .meter = steps.GetMeter(),
-            .num_steps = (unsigned int) radarvalues[RadarCategory_TapsAndHolds],
-            .num_mines = (unsigned int) radarvalues[RadarCategory_Mines],
-            .num_jumps = (unsigned int) radarvalues[RadarCategory_Jumps],
-            .num_hands = (unsigned int) radarvalues[RadarCategory_Hands],
-            .num_holds = (unsigned int) radarvalues[RadarCategory_Holds],
-            .num_rolls = (unsigned int) radarvalues[RadarCategory_Rolls],
+            .num_steps = (int) radarvalues[RadarCategory_TapsAndHolds],
+            .num_mines = (int) radarvalues[RadarCategory_Mines],
+            .num_jumps = (int) radarvalues[RadarCategory_Jumps],
+            .num_hands = (int) radarvalues[RadarCategory_Hands],
+            .num_holds = (int) radarvalues[RadarCategory_Holds],
+            .num_rolls = (int) radarvalues[RadarCategory_Rolls],
         };
     }
 

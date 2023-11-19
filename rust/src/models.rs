@@ -9,6 +9,13 @@ pub struct Pack<'a> {
     pub banner_path: &'a String,
 }
 
+#[derive(Queryable, Selectable)]
+#[diesel(table_name = crate::schema::songs)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]       // todo: remove this to be more SQL platform agnostic
+pub struct SongId {
+    pub id: i32,
+}
+
 #[derive(Insertable)]
 #[diesel(table_name = crate::schema::songs)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]       // todo: remove this to be more SQL platform agnostic
@@ -30,6 +37,24 @@ pub struct Song<'a> {
     pub banner_path: &'a String,
     pub background_path: &'a String,
     pub sm_path: &'a String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::charts)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]       // todo: remove this to be more SQL platform agnostic
+pub struct Chart<'a> {
+    // pub id: i32,
+    pub song_id: i32,
+    pub stepstype: &'a String,
+    pub difficulty: i32,
+    pub description: &'a String,
+    pub meter: i32,
+    pub num_steps: i32,
+    pub num_mines: i32,
+    pub num_jumps: i32,
+    pub num_hands: i32,
+    pub num_holds: i32,
+    pub num_rolls: i32,
 }
 
 // struct Chart {

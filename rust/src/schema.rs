@@ -5,7 +5,7 @@ diesel::table! {
         id -> Integer,
         song_id -> Integer,
         stepstype -> Text,
-        difficulty -> Text,
+        difficulty -> Integer,
         description -> Text,
         meter -> Integer,
         num_steps -> Integer,

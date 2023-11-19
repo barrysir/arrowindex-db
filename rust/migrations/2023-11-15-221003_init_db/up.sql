@@ -38,7 +38,7 @@ CREATE TABLE charts (
     song_id INTEGER NOT NULL,
 
     stepstype VARCHAR NOT NULL,
-    difficulty VARCHAR NOT NULL,
+    difficulty INTEGER NOT NULL,
     description VARCHAR NOT NULL,
     meter INTEGER NOT NULL,
 

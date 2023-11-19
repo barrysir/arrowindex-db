@@ -1,10 +1,10 @@
 use diesel::prelude::*;
 
-#[derive(Insertable)]
+#[derive(Insertable, AsChangeset)]
 #[diesel(table_name = crate::schema::packs)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]       // todo: remove this to be more SQL platform agnostic
 pub struct Pack<'a> {
-    // pub id: i32,
+    pub id: Option<i32>,
     pub name: &'a String,
     pub banner_path: &'a String,
 }

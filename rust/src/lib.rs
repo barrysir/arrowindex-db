@@ -118,19 +118,49 @@ pub fn insert_pack(pack: &ffi::Pack) -> () {
 
     // insert pack record
     let connection = &mut establish_connection();
-    let model_pack = models::Pack {
+    let mut model_pack = models::Pack {
+        id: None,
         name: &pack.name,
         banner_path: &pack.banner_path,  // todo: copy pack banner to file storage and place new path in here
     };
     
     let pack_id = {
-        let pack_id = diesel::insert_into(packs::table)
+        // look for pack name first, if pack found, use that pack id and update, otherwise insert
+        let maybe_existing_pack_id: Option<i32> = (packs::table)
+            .filter(packs::name.eq(model_pack.name))   
+            .select(packs::id) 
+            .first(connection)
+            .ok();
+
+        if maybe_existing_pack_id.is_some() {
+            model_pack.id = maybe_existing_pack_id;
+        }
+
+        let query = diesel::insert_into(packs::table)
             .values(&model_pack)
             .returning(packs::id)
+            .on_conflict(packs::id).do_update().set(&model_pack);
+
+        println!("The insert query: {:?}", diesel::debug_query::<diesel::sqlite::Sqlite, _>(&query));
+
+        query
             .get_result::<i32>(connection)
-            .unwrap();
-        pack_id
+            .unwrap()
     };
+
+    // fetch songs from the database first
+    // generate songs_to_insert
+    // compare song paths (bc most similar to how stepmania works)
+    //      song titles won't work, because it's easy to have duplicate song titles
+    // assign id to matching songs in songs_to_insert
+    // partition into {to delete, to insert, to update}
+
+    // sanity check: assert chart keys are different for every difficulty in a song
+    // how does stepmania manage multiple edits? how does stepmania filter multiple Hard difficulties?
+    //if chart.difficulty == "Edit":
+    // return (chart.stepstype, chart.difficulty, chart.description)
+    // else:
+    //     return (chart.stepstype, chart.difficulty)
 
     // insert songs
     let songs_to_insert = pack.songs.iter().map(|song| {

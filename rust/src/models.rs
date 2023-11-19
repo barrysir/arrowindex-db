@@ -1,52 +1,36 @@
 use diesel::prelude::*;
 
-#[derive(Queryable, Selectable, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = crate::schema::packs)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]       // todo: remove this to be more SQL platform agnostic
-pub struct Pack {
-    pub name: String,
-    pub banner_path: String,
+pub struct Pack<'a> {
+    // pub id: i32,
+    pub name: &'a String,
+    pub banner_path: &'a String,
 }
 
-// struct Song {
-//     is_secret: bool,    // is a "secret" song (valid simfile hidden in the pack files)
-
-//     // has_scroll: bool,  // bpm changes, stops, or similar
-//     // has_mods: bool,  // lua, BGCHANGES, or anything similar
-//     // has_lua: bool,  // lua scripting specifically
-//     // has_video: bool,  // does this song show a video
-
-//     path: String,       // absolute path to song directory
-
-//     artist: String,
-//     artisttranslit: String,
-//     title: String,
-//     titletranslit: String,
-//     subtitle: String,
-//     subtitletranslit: String,
-
-//     // individual charts can have their own bpm, but we'll consider this the "main" bpm of the song
-//     // in the song listing
-//     bpmstyle: DisplayBpm, 
-//     minbpm: f32,
-//     maxbpm: f32,
-
-//     sample_start: f32,
-//     sample_length: f32,
-
-//     length: f32,      // length of the song as calculated by Stepmania
-
-//     music: String,        // Path to the audio file relative to song directory
-//     banner: String,       // Path to the banner relative to song directory
-//     background: String,   // Path to the background relative to song directory
-//     cdtitle: String,      // Path to the cd title relative to song directory
-
-//     simfile: String,      // Path to the parsed simfile relative to song directory
-
-//     charts: Vec<Chart>,
-
-//     // speedchanges: str,    // bpm and speed changes, stored in JSON, to be rendered as a graph on the client
-// }
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::songs)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]       // todo: remove this to be more SQL platform agnostic
+pub struct Song<'a> {
+    // pub id: i32,
+    pub pack_id: i32,
+    pub artist: &'a String,
+    pub artisttranslit: &'a String,
+    pub title: &'a String,
+    pub titletranslit: &'a String,
+    pub subtitle: &'a String,
+    pub subtitletranslit: &'a String,
+    pub bpmstyle: i32,
+    pub minbpm: f32,
+    pub maxbpm: f32,
+    pub length: f32,
+    pub sample_start: f32,
+    pub sample_length: f32,
+    pub banner_path: &'a String,
+    pub background_path: &'a String,
+    pub sm_path: &'a String,
+}
 
 // struct Chart {
 //     stepstype: String,          // can deduplicate these into an enum or table if i want

@@ -110,18 +110,54 @@ pub fn establish_connection() -> SqliteConnection {
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
-pub fn insert_pack(pack: ffi::Pack) -> () {    
-    // dev note: this function takes ownership of the pack struct so it can 
-    // move data (strings, etc.) into the models::Pack object without cloning
+pub fn insert_pack(pack: &ffi::Pack) -> () {
+    use self::schema::packs;
+    use self::schema::songs;
 
-    use self::schema::packs::dsl::*;
-
+    // insert pack record
     let connection = &mut establish_connection();
     let model_pack = models::Pack {
-        name: pack.name,
-        banner_path: pack.banner_path,  // todo: copy pack banner to file storage and place new path in here
+        name: &pack.name,
+        banner_path: &pack.banner_path,  // todo: copy pack banner to file storage and place new path in here
     };
-    diesel::insert_into(packs).values(&model_pack).execute(connection).unwrap();
+    
+    let pack_id = {
+        let pack_id = diesel::insert_into(packs::table)
+            .values(&model_pack)
+            .returning(packs::id)
+            .get_result::<i32>(connection)
+            .unwrap();
+        pack_id
+    };
+
+    // insert songs
+    let songs_to_insert = pack.songs.iter().map(|song| {
+        models::Song {
+            pack_id: pack_id,
+            artist: &song.artist,
+            artisttranslit: &song.artisttranslit,
+            title: &song.title,
+            titletranslit: &song.titletranslit,
+            subtitle: &song.subtitle,
+            subtitletranslit: &song.subtitletranslit,
+            bpmstyle: song.bpmstyle.repr as i32,
+            minbpm: song.minbpm,
+            maxbpm: song.maxbpm,
+            length: song.length,
+            sample_start: song.sample_start,
+            sample_length: song.sample_length,
+            banner_path: &song.banner,
+            background_path: &song.background,
+            sm_path: &song.simfile, 
+        }
+    }).collect::<Vec<models::Song>>();
+
+    diesel::insert_into(songs::table)
+        .values(songs_to_insert)
+        .execute(connection)
+        .unwrap();
+    
+
     // diesel::update(packs::table).set(model_pack).execute(connection)
     // let results = packs
     //     .filter(published.eq(true))
@@ -153,5 +189,5 @@ pub fn process_new_pack(pack: ffi::Pack) -> () {
         println!("\t{} {} - {} ({} BPM, {} seconds) simfile:{}", diffspread, song.artist, song.title, bpmstring, song.length, song.simfile);
     }
 
-    insert_pack(pack);
+    insert_pack(&pack);
 }

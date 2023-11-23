@@ -291,37 +291,120 @@ pub fn insert_pack(pack: &ffi::Pack) -> () {
     // else:
     //     return (chart.stepstype, chart.difficulty)
 
-    // insert charts
-    let charts_to_insert = pack.songs.iter().zip(song_ids.iter()).map(|(song, song_id)| {
-        song.charts.iter().map(|chart| {
-            models::Chart {
-                song_id: *song_id,
-                stepstype: &chart.stepstype,
-                difficulty: chart.difficulty.repr as i32,
-                description: &chart.description,
-                meter: chart.meter,
-                num_steps: chart.num_steps,
-                num_mines: chart.num_mines,
-                num_jumps: chart.num_jumps,
-                num_hands: chart.num_hands,
-                num_holds: chart.num_holds,
-                num_rolls: chart.num_rolls,
-            }
-        })
-    }).flatten().collect::<Vec<models::Chart>>();
+    let chart_ids = {     
+        let charts_to_insert = pack.songs.iter().zip(song_ids.iter()).map(|(song, song_id)| {
+            song.charts.iter().map(|chart| {
+                models::Chart {
+                    id: None,
+                    song_id: *song_id,
+                    stepstype: &chart.stepstype,
+                    difficulty: chart.difficulty.repr as i32,
+                    description: &chart.description,
+                    meter: chart.meter,
+                    num_steps: chart.num_steps,
+                    num_mines: chart.num_mines,
+                    num_jumps: chart.num_jumps,
+                    num_hands: chart.num_hands,
+                    num_holds: chart.num_holds,
+                    num_rolls: chart.num_rolls,
+                }
+            })
+        }).flatten();
 
-    diesel::insert_into(charts::table)
-        .values(&charts_to_insert)
-        .execute(connection)
-        .unwrap();
-    
-    // diesel::update(packs::table).set(model_pack).execute(connection)
-    // let results = packs
-    //     .filter(published.eq(true))
-    //     .limit(5)
-    //     .select(Post::as_select())
-    //     .load(connection)
-    //     .expect("Error loading posts");
+        fn hash_chart_model<'a>(chart: &'a models::Chart) -> (i32, String, i32, String) {
+            return (chart.song_id, chart.stepstype.clone(), chart.difficulty, chart.description.clone());
+        }
+        
+        let existing_charts = (charts::table)
+            .select((charts::id, charts::song_id, charts::stepstype, charts::difficulty, charts::description))
+            .filter(charts::song_id.eq_any(&song_ids));
+
+        println!("{:?}", diesel::debug_query::<diesel::sqlite::Sqlite, _>(&existing_charts));
+
+        let existing_charts: Vec<(i32, i32, String, i32, String)> = existing_charts
+            .get_results(connection)
+            .unwrap();
+
+        println!("Existing charts {:?}", existing_charts);
+
+        let mut lookup: HashMap<_, i32> = existing_charts.into_iter()
+            .map(|chart| ((chart.1, chart.2, chart.3, chart.4),chart.0))
+            .collect();
+        
+        println!("Existing charts {:?}", lookup.values().collect::<Vec<_>>());
+        
+        let mut to_add: Vec<_> = Vec::new();
+        let mut to_update: Vec<_> = Vec::new();
+        let mut where_did_song_go: Vec<bool> = Vec::new();
+        
+        for mut chart in charts_to_insert {
+            let k = hash_chart_model(&chart);
+            let v = lookup.get(&k);
+            if v.is_some() {
+                chart.id = Some(*v.unwrap());
+                lookup.remove(&k);
+                to_update.push(chart);
+                where_did_song_go.push(false);
+            } else {
+                to_add.push(chart);
+                where_did_song_go.push(true);
+            }
+        }
+
+        println!("Deleting chart ids {:?}", lookup.values().collect::<Vec<_>>());
+        diesel::delete(charts::table.filter(charts::id.eq_any(lookup.values().collect::<Vec<_>>())))
+            .execute(connection)
+            .unwrap();
+
+        println!("Updating chart ids {:?}", to_update.iter().map(|s| s.id.unwrap()).collect::<Vec<_>>());
+        connection.transaction(|connection| {
+            for s in &to_update {
+                diesel::update(charts::table)
+                    .filter(charts::id.eq(s.id.unwrap()))
+                    .set(s)
+                    .execute(connection)?;
+            }
+
+            diesel::result::QueryResult::Ok(())
+        }).unwrap();
+
+        let insert_count = diesel::insert_into(charts::table)
+            .values(&to_add)
+            .execute(connection).unwrap();
+
+        // .get_results() doesn't work with .returning() and batch insert on sqlite 
+        // because sqlite doesn't support batch insert with the DEFAULT sql keyword.
+        // error[E0271]: type mismatch resolving `<Sqlite as SqlDialect>::InsertWithDefaultKeyword == IsoSqlDefaultKeyword`
+        // https://stackoverflow.com/questions/74578751/diesel-get-results-gives-a-trait-bound-error
+        // we have to get the song ids another way.
+        // I found this approach in the diesel sqlite example code, I'll use it for now:
+        // https://github.com/diesel-rs/diesel/blob/2.1.x/examples/sqlite/all_about_inserts/src/lib.rs#L290
+        let inserted_chart_ids = (charts::table)
+            .order(charts::id.desc())
+            .limit(insert_count as i64)
+            .select(charts::id)
+            .load(connection)
+            .unwrap().into_iter().rev()
+            .collect::<Vec<i32>>();
+
+        println!("Inserted {} songs, ids: {:?}", insert_count, inserted_chart_ids);
+
+        for (chart, inserted_id) in to_add.iter_mut().zip(inserted_chart_ids) {
+            chart.id = Some(inserted_id);
+        }
+
+        let mut a = to_update.iter();
+        let mut b = to_add.iter();
+
+        let chart_ids = where_did_song_go.iter().map(|&v| {
+            if v {
+                b.next().unwrap().id.unwrap()
+            } else {
+                a.next().unwrap().id.unwrap()
+            }
+        });
+        chart_ids.collect::<Vec<_>>()
+    };
 }
 
 pub fn process_new_pack(pack: ffi::Pack) -> () {

@@ -40,11 +40,11 @@ pub struct Song<'a> {
     pub background_path: &'a String,
 }
 
-#[derive(Insertable)]
+#[derive(Queryable, Insertable, Identifiable, AsChangeset)]
 #[diesel(table_name = crate::schema::charts)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]       // todo: remove this to be more SQL platform agnostic
 pub struct Chart<'a> {
-    // pub id: i32,
+    pub id: Option<i32>,
     pub song_id: i32,
     pub stepstype: &'a String,
     pub difficulty: i32,

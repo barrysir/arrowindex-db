@@ -1,6 +1,6 @@
 use diesel::prelude::*;
 
-#[derive(Insertable, AsChangeset)]
+#[derive(Insertable, Identifiable, AsChangeset)]
 #[diesel(table_name = crate::schema::packs)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]       // todo: remove this to be more SQL platform agnostic
 pub struct Pack<'a> {
@@ -16,12 +16,14 @@ pub struct SongId {
     pub id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Queryable, Insertable, Identifiable, AsChangeset)]
 #[diesel(table_name = crate::schema::songs)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]       // todo: remove this to be more SQL platform agnostic
 pub struct Song<'a> {
-    // pub id: i32,
+    pub id: Option<i32>,
     pub pack_id: i32,
+    pub song_path: String,
+    pub sm_path: String,
     pub artist: &'a String,
     pub artisttranslit: &'a String,
     pub title: &'a String,
@@ -36,7 +38,6 @@ pub struct Song<'a> {
     pub sample_length: f32,
     pub banner_path: &'a String,
     pub background_path: &'a String,
-    pub sm_path: &'a String,
 }
 
 #[derive(Insertable)]

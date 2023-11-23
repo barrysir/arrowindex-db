@@ -97,6 +97,8 @@ pub fn rust_from_cpp() -> () {
     println!("called rust_from_cpp()");
 }
 
+use std::collections::HashMap;
+
 use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 // use dotenvy::dotenv;
@@ -117,6 +119,8 @@ pub fn insert_pack(pack: &ffi::Pack) -> () {
     use self::schema::charts;
 
     // insert pack record
+
+    // todo: save this between operations
     let connection = &mut establish_connection();
     let mut model_pack = models::Pack {
         id: None,
@@ -142,58 +146,109 @@ pub fn insert_pack(pack: &ffi::Pack) -> () {
             .on_conflict(packs::id).do_update().set(&model_pack);
 
         println!("The insert query: {:?}", diesel::debug_query::<diesel::sqlite::Sqlite, _>(&query));
-
+        
         query
             .get_result::<i32>(connection)
             .unwrap()
     };
 
-    // fetch songs from the database first
-    // generate songs_to_insert
-    // compare song paths (bc most similar to how stepmania works)
-    //      song titles won't work, because it's easy to have duplicate song titles
-    // assign id to matching songs in songs_to_insert
-    // partition into {to delete, to insert, to update}
-
-    // sanity check: assert chart keys are different for every difficulty in a song
-    // how does stepmania manage multiple edits? how does stepmania filter multiple Hard difficulties?
-    //if chart.difficulty == "Edit":
-    // return (chart.stepstype, chart.difficulty, chart.description)
-    // else:
-    //     return (chart.stepstype, chart.difficulty)
+    // song id of each inserted/updated song, in order of pack.songs
 
     // insert songs
-    let songs_to_insert = pack.songs.iter().map(|song| {
-        models::Song {
-            pack_id: pack_id,
-            artist: &song.artist,
-            artisttranslit: &song.artisttranslit,
-            title: &song.title,
-            titletranslit: &song.titletranslit,
-            subtitle: &song.subtitle,
-            subtitletranslit: &song.subtitletranslit,
-            bpmstyle: song.bpmstyle.repr as i32,
-            minbpm: song.minbpm,
-            maxbpm: song.maxbpm,
-            length: song.length,
-            sample_start: song.sample_start,
-            sample_length: song.sample_length,
-            banner_path: &song.banner,
-            background_path: &song.background,
-            sm_path: &song.simfile, 
+    let song_ids = {     
+        let songs_to_insert = pack.songs.iter().map(|song| {
+            use std::path::Path;
+
+            let smpath = Path::new(&song.simfile);
+            // to do remove pack name from this
+            let songpath = smpath.parent().unwrap().file_name().unwrap().to_str().unwrap().to_string();
+            let smfile = smpath.file_name().unwrap().to_str().unwrap().to_string();
+
+            models::Song {
+                id: None,
+                pack_id: pack_id,
+                song_path: songpath,
+                sm_path: smfile,
+                artist: &song.artist,
+                artisttranslit: &song.artisttranslit,
+                title: &song.title,
+                titletranslit: &song.titletranslit,
+                subtitle: &song.subtitle,
+                subtitletranslit: &song.subtitletranslit,
+                bpmstyle: song.bpmstyle.repr as i32,
+                minbpm: song.minbpm,
+                maxbpm: song.maxbpm,
+                length: song.length,
+                sample_start: song.sample_start,
+                sample_length: song.sample_length,
+                banner_path: &song.banner,
+                background_path: &song.background,
+            }
+        });
+
+        // fetch songs from the database first
+        // generate songs_to_insert
+        // compare song paths (bc most similar to how stepmania works)
+        //      song titles won't work, because it's easy to have duplicate song titles
+        // assign id to matching songs in songs_to_insert
+        // partition into {to delete, to insert, to update}
+        
+        let existing_songs = (songs::table)
+            .select((songs::id, songs::song_path))
+            .filter(songs::pack_id.eq(pack_id));
+
+        println!("{:?}", diesel::debug_query::<diesel::sqlite::Sqlite, _>(&existing_songs));
+
+        let existing_songs: Vec<(i32, String)> = existing_songs    
+            .get_results(connection)
+            .unwrap();
+
+        println!("Existing songs {:?}", existing_songs);
+
+        let mut lookup: HashMap<String, i32> = existing_songs.into_iter()
+            .map(|(i, s)| (s,i))
+            .collect();
+        
+        println!("Existing song ids {:?}", lookup.values().collect::<Vec<_>>());
+        
+        let mut to_add: Vec<models::Song> = Vec::new();
+        let mut to_update: Vec<models::Song> = Vec::new();
+        let mut where_did_song_go: Vec<bool> = Vec::new();
+        
+        for mut song in songs_to_insert {
+            let k = &song.song_path;
+            let v = lookup.get(k);
+            if v.is_some() {
+                song.id = Some(*v.unwrap());
+                lookup.remove(k);
+                to_update.push(song);
+                where_did_song_go.push(false);
+            } else {
+                to_add.push(song);
+                where_did_song_go.push(true);
+            }
         }
-    }).collect::<Vec<models::Song>>();
 
-    let song_ids = {
+        println!("Deleting song ids {:?}", lookup.values().collect::<Vec<_>>());
+        diesel::delete(songs::table.filter(songs::id.eq_any(lookup.values().collect::<Vec<_>>())))
+            .execute(connection)
+            .unwrap();
+
+        println!("Updating song ids {:?}", to_update.iter().map(|s| s.id.unwrap()).collect::<Vec<_>>());
+        connection.transaction(|connection| {
+            for s in &to_update {
+                diesel::update(songs::table)
+                    .filter(songs::id.eq(s.id.unwrap()))
+                    .set(s)
+                    .execute(connection)?;
+            }
+
+            diesel::result::QueryResult::Ok(())
+        }).unwrap();
+
         let insert_count = diesel::insert_into(songs::table)
-            .values(&songs_to_insert)
+            .values(&to_add)
             .execute(connection).unwrap();
-
-        // let song_ids = diesel::insert_into(songs::table)
-        //     .values(&songs_to_insert)
-        //     .returning(songs::id)
-        //     .get_results(connection)
-        //     .unwrap();
 
         // .get_results() doesn't work with .returning() and batch insert on sqlite 
         // because sqlite doesn't support batch insert with the DEFAULT sql keyword.
@@ -202,14 +257,39 @@ pub fn insert_pack(pack: &ffi::Pack) -> () {
         // we have to get the song ids another way.
         // I found this approach in the diesel sqlite example code, I'll use it for now:
         // https://github.com/diesel-rs/diesel/blob/2.1.x/examples/sqlite/all_about_inserts/src/lib.rs#L290
-        (songs::table)
+        let inserted_song_ids = (songs::table)
             .order(songs::id.desc())
             .limit(insert_count as i64)
             .select(models::SongId::as_select())
             .load(connection)
             .unwrap().into_iter().rev().map(|s| s.id)
-            .collect::<Vec<i32>>()
+            .collect::<Vec<i32>>();
+
+        println!("Inserted {} songs, ids: {:?}", insert_count, inserted_song_ids);
+
+        for (song, inserted_id) in to_add.iter_mut().zip(inserted_song_ids) {
+            song.id = Some(inserted_id);
+        }
+
+        let mut a = to_update.iter();
+        let mut b = to_add.iter();
+
+        let song_ids = where_did_song_go.iter().map(|&v| {
+            if v {
+                b.next().unwrap().id.unwrap()
+            } else {
+                a.next().unwrap().id.unwrap()
+            }
+        });
+        song_ids.collect::<Vec<_>>()
     };
+
+    // sanity check: assert chart keys are different for every difficulty in a song
+    // how does stepmania manage multiple edits? how does stepmania filter multiple Hard difficulties?
+    //if chart.difficulty == "Edit":
+    // return (chart.stepstype, chart.difficulty, chart.description)
+    // else:
+    //     return (chart.stepstype, chart.difficulty)
 
     // insert charts
     let charts_to_insert = pack.songs.iter().zip(song_ids.iter()).map(|(song, song_id)| {
@@ -245,7 +325,6 @@ pub fn insert_pack(pack: &ffi::Pack) -> () {
 }
 
 pub fn process_new_pack(pack: ffi::Pack) -> () {
-    use std::collections::HashMap;
     use ffi::Difficulty;
     use ffi::Chart;
 

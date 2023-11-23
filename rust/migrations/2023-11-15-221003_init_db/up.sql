@@ -9,6 +9,9 @@ CREATE TABLE songs (
 
     pack_id INTEGER NOT NULL,
 
+    song_path VARCHAR NOT NULL,     -- Path to the song folder relative to the pack
+    sm_path VARCHAR NOT NULL,       -- Path to the sm file within the song folder
+
     artist VARCHAR NOT NULL,
     artisttranslit VARCHAR NOT NULL,
     title VARCHAR NOT NULL,
@@ -25,9 +28,8 @@ CREATE TABLE songs (
     sample_start REAL NOT NULL,
     sample_length REAL NOT NULL,
 
-    banner_path VARCHAR NOT NULL,
-    background_path VARCHAR NOT NULL,
-    sm_path VARCHAR NOT NULL,
+    banner_path VARCHAR NOT NULL,       -- Path to the banner image in file storage
+    background_path VARCHAR NOT NULL,   -- Path to the background image in file storage
 
     FOREIGN KEY (pack_id) REFERENCES packs (id)
 );
@@ -38,7 +40,7 @@ CREATE TABLE charts (
     song_id INTEGER NOT NULL,
 
     stepstype VARCHAR NOT NULL,
-    difficulty INTEGER NOT NULL,
+    difficulty INTEGER NOT NULL,        -- enum
     description VARCHAR NOT NULL,
     meter INTEGER NOT NULL,
 

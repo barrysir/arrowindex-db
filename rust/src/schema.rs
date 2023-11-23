@@ -29,6 +29,8 @@ diesel::table! {
     songs (id) {
         id -> Integer,
         pack_id -> Integer,
+        song_path -> Text,
+        sm_path -> Text,
         artist -> Text,
         artisttranslit -> Text,
         title -> Text,
@@ -43,7 +45,6 @@ diesel::table! {
         sample_length -> Float,
         banner_path -> Text,
         background_path -> Text,
-        sm_path -> Text,
     }
 }
 

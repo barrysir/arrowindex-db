@@ -89,7 +89,12 @@ mod ffi {
 
     extern "Rust" {
         fn rust_from_cpp() -> ();
-        fn process_new_pack(pack: Pack) -> ();
+    }
+
+    extern "Rust" {
+        type Arrowindex;
+        fn initialize() -> Box<Arrowindex>;
+        fn process_new_pack(&mut self, pack: Pack) -> ();
     }
 }
 
@@ -104,6 +109,24 @@ use diesel::prelude::*;
 // use dotenvy::dotenv;
 // use std::env;
 
+pub struct Arrowindex {
+    conn: SqliteConnection
+}
+
+pub fn initialize() -> Box<Arrowindex> {
+    return Box::new(Arrowindex::new());
+}
+
+impl Arrowindex {
+    pub fn new() -> Self {
+        Arrowindex { conn: establish_connection() }
+    }
+
+    pub fn process_new_pack(&mut self, pack: ffi::Pack) -> () {
+        return process_new_pack(&mut self.conn, pack);
+    }
+}
+
 pub fn establish_connection() -> SqliteConnection {
     // dotenv().ok();
 
@@ -113,15 +136,11 @@ pub fn establish_connection() -> SqliteConnection {
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
-pub fn insert_pack(pack: &ffi::Pack) -> () {
+pub fn insert_pack(connection: &mut SqliteConnection, pack: &ffi::Pack) -> () {
     use self::schema::packs;
     use self::schema::songs;
     use self::schema::charts;
 
-    // insert pack record
-
-    // todo: save this between operations
-    let connection = &mut establish_connection();
     let mut model_pack = models::Pack {
         id: None,
         name: &pack.name,
@@ -407,7 +426,7 @@ pub fn insert_pack(pack: &ffi::Pack) -> () {
     };
 }
 
-pub fn process_new_pack(pack: ffi::Pack) -> () {
+pub fn process_new_pack(connection: &mut SqliteConnection, pack: ffi::Pack) -> () {
     use ffi::Difficulty;
     use ffi::Chart;
 
@@ -428,5 +447,5 @@ pub fn process_new_pack(pack: ffi::Pack) -> () {
         println!("\t{} {} - {} ({} BPM, {} seconds) simfile:{}", diffspread, song.artist, song.title, bpmstring, song.length, song.simfile);
     }
 
-    insert_pack(&pack);
+    insert_pack(connection, &pack);
 }

@@ -418,6 +418,8 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 		ld->SetTotalWork( songCount );
 	}
 
+	auto ax = arrowindex::initialize();
+
 	groupIndex = 0;
 	songIndex = 0;
 	for (RString const &sGroupDirName : arrayGroupDirs)	// foreach dir in /Songs/
@@ -483,7 +485,7 @@ void SongManager::LoadSongDir( RString sDir, LoadingWindow *ld, bool onlyAdditio
 
 		// Add this group to the group array.
 		AddGroup(sDir, sGroupDirName, &current_pack);
-		arrowindex::process_new_pack(current_pack);
+		ax->process_new_pack(current_pack);
 
 		// Cache and load the group banner. (and background if it has one -aj)
 		IMAGECACHE->CacheImage( "Banner", GetSongGroupBannerPath(sGroupDirName) );

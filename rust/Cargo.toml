@@ -12,7 +12,7 @@ crate-type = ["staticlib"]
 cxx = "1.0"
 
 # might need more diesel features packaged in here: "postgres", "mysql"
-diesel = { version = "2.1.1", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
+diesel = { version = "2.1.1", features = ["sqlite", "postgres", "returning_clauses_for_sqlite_3_35"] }
 libsqlite3-sys = { version = "0.27.0", features = ["bundled"] }
 
 [build-dependencies]

@@ -2,49 +2,49 @@
 
 diesel::table! {
     charts (id) {
-        id -> Integer,
-        song_id -> Integer,
-        stepstype -> Text,
-        difficulty -> Integer,
-        description -> Text,
-        meter -> Integer,
-        num_steps -> Integer,
-        num_mines -> Integer,
-        num_jumps -> Integer,
-        num_hands -> Integer,
-        num_holds -> Integer,
-        num_rolls -> Integer,
+        id -> Int4,
+        song_id -> Int4,
+        stepstype -> Varchar,
+        difficulty -> Int4,
+        description -> Varchar,
+        meter -> Int4,
+        num_steps -> Int4,
+        num_mines -> Int4,
+        num_jumps -> Int4,
+        num_hands -> Int4,
+        num_holds -> Int4,
+        num_rolls -> Int4,
     }
 }
 
 diesel::table! {
     packs (id) {
-        id -> Integer,
-        name -> Text,
-        banner_path -> Text,
+        id -> Int4,
+        name -> Varchar,
+        banner_path -> Varchar,
     }
 }
 
 diesel::table! {
     songs (id) {
-        id -> Integer,
-        pack_id -> Integer,
-        song_path -> Text,
-        sm_path -> Text,
-        artist -> Text,
-        artisttranslit -> Text,
-        title -> Text,
-        titletranslit -> Text,
-        subtitle -> Text,
-        subtitletranslit -> Text,
-        bpmstyle -> Integer,
-        minbpm -> Float,
-        maxbpm -> Float,
-        length -> Float,
-        sample_start -> Float,
-        sample_length -> Float,
-        banner_path -> Text,
-        background_path -> Text,
+        id -> Int4,
+        pack_id -> Int4,
+        song_path -> Varchar,
+        sm_path -> Varchar,
+        artist -> Varchar,
+        artisttranslit -> Varchar,
+        title -> Varchar,
+        titletranslit -> Varchar,
+        subtitle -> Varchar,
+        subtitletranslit -> Varchar,
+        bpmstyle -> Int4,
+        minbpm -> Float4,
+        maxbpm -> Float4,
+        length -> Float4,
+        sample_start -> Float4,
+        sample_length -> Float4,
+        banner_path -> Varchar,
+        background_path -> Varchar,
     }
 }
 

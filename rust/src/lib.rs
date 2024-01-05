@@ -1,6 +1,8 @@
 pub mod models;
 pub mod schema;
 
+use std::env;
+
 #[cxx::bridge(namespace = "arrowindex")]
 mod ffi {
     struct Pack {
@@ -104,13 +106,13 @@ pub fn rust_from_cpp() -> () {
 
 use std::collections::HashMap;
 
-use diesel::sqlite::SqliteConnection;
+use diesel::pg::PgConnection;
 use diesel::prelude::*;
 // use dotenvy::dotenv;
 // use std::env;
 
 pub struct Arrowindex {
-    conn: SqliteConnection
+    conn: PgConnection
 }
 
 pub fn initialize() -> Box<Arrowindex> {
@@ -127,16 +129,16 @@ impl Arrowindex {
     }
 }
 
-pub fn establish_connection() -> SqliteConnection {
+pub fn establish_connection() -> PgConnection {
     // dotenv().ok();
 
     // todo: don't hardcode this
-    let database_url = "sqlite://arrowindex.db"; // env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    SqliteConnection::establish(&database_url)
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    PgConnection::establish(&database_url)
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
-pub fn insert_pack(connection: &mut SqliteConnection, pack: &ffi::Pack) -> () {
+pub fn insert_pack(connection: &mut PgConnection, pack: &ffi::Pack) -> () {
     use self::schema::packs;
     use self::schema::songs;
     use self::schema::charts;
@@ -426,7 +428,7 @@ pub fn insert_pack(connection: &mut SqliteConnection, pack: &ffi::Pack) -> () {
     };
 }
 
-pub fn process_new_pack(connection: &mut SqliteConnection, pack: ffi::Pack) -> () {
+pub fn process_new_pack(connection: &mut PgConnection, pack: ffi::Pack) -> () {
     use ffi::Difficulty;
     use ffi::Chart;
 

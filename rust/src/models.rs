@@ -38,6 +38,7 @@ pub struct Song<'a> {
     pub sample_length: f32,
     pub banner_path: &'a String,
     pub background_path: &'a String,
+    pub tags: String,
 }
 
 #[derive(Queryable, Insertable, Identifiable, AsChangeset)]

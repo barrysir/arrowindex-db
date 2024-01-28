@@ -138,6 +138,48 @@ pub fn establish_connection() -> PgConnection {
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
+fn generate_tags(song: &ffi::Song) -> String {
+    let mut tags = Vec::new();
+
+    fn dedupe(tags: &mut Vec<String>, normal: &String, translit: &String) {
+        // if normal is 'blank': skip
+        // if normal == translit (ignoring spaces): skip
+        // if translit is 'blank': skip
+
+        let normal = normal.trim().to_lowercase();
+        let translit = translit.trim().to_lowercase();
+
+        let mut add_normal = false;
+        if normal.is_empty() {
+
+        } else {
+            add_normal = true;
+        }
+
+        let mut add_translit = false;
+        if translit.is_empty() {
+
+        } else if normal == translit {
+
+        } else {
+            add_translit = true;
+        }
+
+        if add_normal {
+            tags.push(normal);
+        }
+        if add_translit {
+            tags.push(translit);
+        }
+    }
+
+    dedupe(&mut tags, &song.artist, &song.artisttranslit);
+    dedupe(&mut tags, &song.title, &song.titletranslit);
+    dedupe(&mut tags, &song.subtitle, &song.subtitletranslit);
+
+    return tags.join(" ");
+}
+
 pub fn insert_pack(connection: &mut PgConnection, pack: &ffi::Pack) -> () {
     use self::schema::packs;
     use self::schema::songs;
@@ -204,6 +246,7 @@ pub fn insert_pack(connection: &mut PgConnection, pack: &ffi::Pack) -> () {
                 sample_length: song.sample_length,
                 banner_path: &song.banner,
                 background_path: &song.background,
+                tags: generate_tags(&song),
             }
         });
 

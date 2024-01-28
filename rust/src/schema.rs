@@ -45,6 +45,7 @@ diesel::table! {
         sample_length -> Float4,
         banner_path -> Varchar,
         background_path -> Varchar,
+        tags -> Varchar,
     }
 }
 
